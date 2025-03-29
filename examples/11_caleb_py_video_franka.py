@@ -272,15 +272,21 @@ sftp = ssh.open_sftp()
 
 # Load the pretrained model once
 model = OctoModel.load_pretrained("hf://rail-berkeley/octo-base-1.5")
+print("dataset statistics keys: ", model.dataset_statistics.keys)
+exit()
 
 # Create a fixed task (adjust the text prompt as needed)
-task_text = "reach up in the air"
+task_text = "grab the red tape"
 task = model.create_tasks(texts=[task_text])
 
 # Open the camera
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(6)
 if not cap.isOpened():
-    raise Exception("Could not open camera.")
+    raise Exception("Could not open camera 3rd person.")
+
+cap_w = cv2.VideoCapture(8)
+if not cap_w.isOpened():
+    raise Exception("Could not open camera wrist.")
 
 # Initialize cropping parameters
 crop_width = 256
@@ -301,8 +307,8 @@ try:
     # Initialize sliders for cropping
     ax_slider_x = plt.axes([0.25, 0.2, 0.65, 0.03])
     ax_slider_y = plt.axes([0.25, 0.15, 0.65, 0.03])
-    slider_x = Slider(ax_slider_x, 'Crop X', 0, 1, valinit=0.87, valstep=0.01)
-    slider_y = Slider(ax_slider_y, 'Crop Y', 0, 1, valinit=0.7, valstep=0.01)
+    slider_x = Slider(ax_slider_x, 'Crop X', 0, 1, valinit=0.58, valstep=0.01)
+    slider_y = Slider(ax_slider_y, 'Crop Y', 0, 1, valinit=0.25, valstep=0.01)
 
     # Add a button for task input update
     ax_button = plt.axes([0.4, 0.05, 0.2, 0.075])
@@ -317,29 +323,47 @@ try:
             if not ret:
                 print("Failed to read from camera. Exiting.")
                 break
+        except jax.errors.UnexpectedTracerError as tracer_error:
+            print(f"JAX Tracer Error: {tracer_error}")
+            break
+
+        except Exception as e:
+            print(f"General error encountered: {e}")
+            traceback.print_exc()
+            break
+        try:
+            ret_w, frame_w = cap_w.read()
+            if not ret:
+                print("Failed to read from camera wrist. Exiting.")
+                break
 
             # Get cropping parameters from sliders
             crop_x = int(slider_x.val * (frame.shape[1] - crop_width))
             crop_y = int(slider_y.val * (frame.shape[0] - crop_height))
 
             # Crop the frame safely
-            cropped_frame = frame[crop_y:crop_y + crop_height, crop_x:crop_x + crop_width]
-
+            # cropped_frame = frame[crop_y:crop_y + crop_height, crop_x:crop_x + crop_width]
+            cropped_frame = frame
             # Resize and convert to RGB
             resized = cv2.resize(cropped_frame, (256, 256))
+            resized_w = cv2.resize(frame_w, (128, 128))
             resized_rgb = cv2.cvtColor(resized, cv2.COLOR_BGR2RGB)
+            resized_w_rgb = cv2.cvtColor(resized_w, cv2.COLOR_BGR2RGB)
 
             # Display the cropped frame safely
             ax.clear()
-            ax.imshow(cv2.cvtColor(cropped_frame, cv2.COLOR_BGR2RGB))
+            ax.imshow(cv2.cvtColor(resized_w, cv2.COLOR_BGR2RGB))
             plt.pause(0.05)
 
             # Prepare input for the model
             img = resized_rgb[np.newaxis, np.newaxis, ...]
+            img_w = resized_w_rgb[np.newaxis, np.newaxis, ...]
             observation = {
                 "image_primary": img,
+                "image_wrist": img_w,
                 "timestep_pad_mask": np.array([[True]])
             }
+           
 
             # Model inference
             action = model.sample_actions(
@@ -350,7 +374,7 @@ try:
             )
 
             # Write action to a file
-            print(action)
+            # print(action)
             local_action_file = "action.txt"
             with open(local_action_file, "w") as f:
                 line = ",".join(f"{val:.6f}" for val in action[0][0])
