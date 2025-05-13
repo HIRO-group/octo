@@ -33,10 +33,10 @@ task_text = "Grab the red cylinder from the top"
 task = model.create_tasks(texts=[task_text])
 
 # Cameras
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(2)
 if not cap.isOpened():
     raise Exception("Could not open 3rd person camera.")
-cap_w = cv2.VideoCapture(2)
+cap_w = cv2.VideoCapture(4)
 if not cap_w.isOpened():
     raise Exception("Could not open wrist camera.")
 
@@ -89,7 +89,7 @@ try:
             img = resized_rgb[np.newaxis, np.newaxis, ...]
             img_w = resized_w_rgb[np.newaxis, np.newaxis, ...]
             observation = {
-                "image_primary": img,
+                # "image_primary": img,
                 "image_wrist": img_w,
                 "timestep_pad_mask": np.array([[True]])
             }

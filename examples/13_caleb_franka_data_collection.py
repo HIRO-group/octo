@@ -11,7 +11,7 @@ from sensor_msgs.msg import JointState
 from geometry_msgs.msg import TwistStamped
 from std_msgs.msg import Bool  # <-- Added
 
-SAVE_ROOT = "/home/caleb/datasets/octo_test"
+SAVE_ROOT = "/home/caleb/datasets/twistgil"
 
 class JointStateListener(Node):
     def __init__(self):
